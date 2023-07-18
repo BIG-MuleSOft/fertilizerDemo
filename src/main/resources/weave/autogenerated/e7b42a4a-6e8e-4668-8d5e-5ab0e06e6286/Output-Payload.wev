@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_e7b42a4a_6e8e_4668_8d5e_5ab0e06e6286_Output_Payload = Array<{|  ErrorCode: String,   failedWithNumber: Null,   ErrorDescription: String|} | {|  ErrorCode: String,   countMF: Null,   ErrorDescription: String|}>
+

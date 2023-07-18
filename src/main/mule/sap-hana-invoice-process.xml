@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:jms="http://www.mulesoft.org/schema/mule/jms" xmlns:amqp="http://www.mulesoft.org/schema/mule/amqp"
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:s4hana="http://www.mulesoft.org/schema/mule/s4hana" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/s4hana http://www.mulesoft.org/schema/mule/s4hana/current/mule-s4hana.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd
+http://www.mulesoft.org/schema/mule/amqp http://www.mulesoft.org/schema/mule/amqp/current/mule-amqp.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd">
+	<flow name="sap-hana-invoice-SchedulerFlow" doc:id="fbd89cf9-4b69-4bfa-bcf8-ee4fe666505f" initialState="stopped">
+		<scheduler doc:name="Scheduler" doc:id="ab8d4dd4-e87a-44ce-b2ed-863575ad2960" >
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+		</scheduler>
+		<json-logger:logger doc:name="process-start" doc:id="33204d87-0f2a-48a0-802f-c5f72a3cdcc2" config-ref="JSON_Logger_Config" message="process start"/>
+		<os:retrieve doc:name="RetrievelastRecordInvoice" doc:id="ff60169d-da26-4ed4-894b-bc80aa6d0083" key="lastRecordInv" objectStore="Object_store">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<flow-ref doc:name="sap-invoice-process-flow" doc:id="fd03157f-81b1-48b1-ad7c-c44531e57251" name="sap-invoice-process-flow"/>
+	</flow>
+	<flow name="sap-invoice-process-flow" doc:id="6793829f-c83d-4726-9431-015f23f47eaa" >
+		<db:select doc:name="queryForInvoice" doc:id="2f84898a-5471-425d-877a-4f5a65613304" config-ref="Database_Config_SAP">
+			<db:sql ><![CDATA[	SELECT
+	"INVID",
+	"SUSR",
+	"PRCHS",
+	"INVST",
+	"INVAMT",
+	"PMTMD",
+	"MBRSH",
+	"INVDT"
+FROM "HOTEL"."Z0MM_XMARA_INVOICE" WHERE INVID >:record]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{"record" : payload}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="sortPayload" doc:id="d129bcd8-faa7-4fe1-a4f4-a2f8f449ae71" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload orderBy ((item, index) -> item.INVID)]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="lastRecordInv" ><![CDATA[max(payload.INVID)]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<os:retrieve doc:name="Retrieve-batchNoInv" doc:id="c05662f7-4e0f-410a-9663-d76e89c252de" key="batchNoInv" objectStore="Object_store" target="batchNo">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<ee:transform doc:name="SucceessAndFailRecords" doc:id="ce793829-7221-4792-8ad6-8d0e73b22071" >
+			<ee:message />
+			<ee:variables >
+				<ee:set-variable variableName="successRecords" ><![CDATA[%dw 2.0
+output application/json
+---
+payload filter ($.'INVID' != "" and $.'SUSR' != ""  and typeOf($.'INVAMT') != Number)]]></ee:set-variable>
+				<ee:set-variable variableName="failedRecordsMF" ><![CDATA[%dw 2.0
+output application/json
+---
+payload filter ($.'SUSR' == "" ) default[]]]></ee:set-variable>
+				<ee:set-variable variableName="failedRecordsNumberVal" ><![CDATA[%dw 2.0
+output application/json
+---
+payload filter (typeOf($.'INVAMT') == "Number")
+]]></ee:set-variable>
+				<ee:set-variable variableName="batchNo" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.batchNo + 1]]></ee:set-variable>
+				<ee:set-variable variableName="startTime" ><![CDATA[%dw 2.0
+output application/java
+---
+now()]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="sizesOfData" doc:id="2e379730-8887-4079-abf5-ba84288a79c2" >
+			<ee:message />
+			<ee:variables >
+				<ee:set-variable variableName="recordsSizes" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"totalSizePayload" : sizeOf(payload),
+	"SuccessPayload" :sizeOf(vars.successRecords),
+	"totalFailedRecords" : sizeOf(payload) - sizeOf(vars.successRecords),
+	"failedWithNumber": sizeOf(vars.failedRecordsNumberVal),
+	"failedWithMF" : sizeOf(vars.failedRecordsMF)
+}]]></ee:set-variable>
+				<ee:set-variable variableName="batchrun" ><![CDATA[%dw 2.0
+output application/json
+---
+now() as String {format: "yyyy-MM-dd HH:mm:ss"}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="51f5291a-c1c4-41e7-81af-32ff4a133008" >
+			<when expression="#[sizeOf(vars.successRecords) &gt; '0']">
+				<jms:publish doc:name="PublishInvoice" doc:id="9a3d1688-7411-4bc7-9f17-bbc225e00766" config-ref="JMS_Config" destination="${activemq.invoiceQueue}">
+					<jms:message >
+						<jms:body ><![CDATA[#[vars.successRecords]]]></jms:body>
+						<jms:properties ><![CDATA[#[{"batchRuntime" : vars.batchrun,
+	"batchNo": "INVO#" ++ vars.batchNo
+}]]]></jms:properties>
+					</jms:message>
+				</jms:publish>
+			</when>
+			<otherwise >
+				<json-logger:logger doc:name="no success records to process" doc:id="35292cd8-32c8-4b7f-bd53-f72e2959eb61" config-ref="JSON_Logger_Config" message="no success records to process"/>
+			</otherwise>
+		</choice> 
+		<ee:transform doc:name="inputTocommontrace Table" doc:id="989deafa-ab07-41ee-8bc8-13dd230762ec">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+import * from dw::util::Coercions
+output application/json
+var flowruntime=toNumber((now() - vars.startTime), "seconds")
+---
+{
+    "sourcedatatype" : 'Invoice',
+    "batchrun" : vars.batchrun,
+    "totalrecord" : vars.recordsSizes.totalSizePayload as Number,
+    "totalsuccessrecord" : vars.recordsSizes.SuccessPayload as Number,
+    "totalfailedrrecord" : vars.recordsSizes.totalFailedRecords as Number,
+    "failedWithNumber" : vars.recordsSizes.failedWithNumber,
+    "failedWithMF" : vars.recordsSizes.failedWithMF,
+    "status" :  if (vars.recordsSizes.totalFailedRecords == 0 )"PASSED" else if(vars.recordsSizes.totalSizePayload == vars.recordsSizes.totalFailedRecords )"FAILED" else "Partial-Passed",
+    "phase" : "SAP",
+    "batchNo": "INVO#" ++ vars.batchNo,
+    "flowruntime": flowruntime
+     }]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<flow-ref doc:name="process-error-records-invoice" doc:id="31608ee6-3c3d-4a58-bbd9-2a19797842a2" name="process-error-records-inv"/>
+		<flow-ref doc:name="ObjectStoreUpdate_Flow_invoice" doc:id="f6ff920f-8ef7-4f58-8471-12a11480dce6" name="ObjectStoreUpdate_Flow_invoice"/>
+	</flow>
+	<sub-flow name="ObjectStoreUpdate_Flow_invoice" doc:id="e7b42a4a-6e8e-4668-8d5e-5ab0e06e6286" >
+		<os:store doc:name="updateObjectStoreInvoiceLastRecord" doc:id="d51bc0af-b302-4638-b5c9-ae7bee59604c" key="lastRecordInv">
+			<os:value ><![CDATA[#[vars.lastRecordInv]]]></os:value>
+		</os:store>
+		<os:store doc:name="Store-batchNoInv" doc:id="db13ff6b-95cc-44ba-a2f3-41b6e3ecbb2f" key="batchNoInv" objectStore="Object_store"/>
+	</sub-flow>
+</mule>

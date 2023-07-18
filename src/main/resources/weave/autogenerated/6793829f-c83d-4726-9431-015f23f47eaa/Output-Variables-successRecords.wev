@@ -1,0 +1,9 @@
+%dw 2.0
+
+type auto_6793829f_c83d_4726_9431_015f23f47eaa_Output_Variables_successRecords = Array<{ _?: java_lang_Object }>
+type java_lang_Object = {|  |} {"typeAlias": "Object",
+"class": "java.lang.Object",
+"typeId": "java.lang.Object"}
+
+
+

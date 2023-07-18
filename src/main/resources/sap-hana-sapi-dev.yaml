@@ -1,0 +1,28 @@
+# SAP hana Database Configuration 
+s4hana:
+  url : "jdbc:sap://17040ef2-9ac0-4142-937f-5deed6e9d9ee.hana.trial-us10.hanacloud.ondemand.com:443?currentschema=HOTEL"
+  username: "USER1"
+  #password: "Password1"
+  password: "![2Lf1TDq5q5c1TCiBh25FYw==]"
+
+# postgresql Database Configuration  
+Database_postgresql:
+  url: "jdbc:postgresql://stampy.db.elephantsql.com/iyciylgw"
+  username: "iyciylgw"
+  #password: "17kZptSRRqeGBtWYBqPHSMJA5Tfy3ImK"
+  password: "![5izdEDHS/18LSioKgAsB1t10X/aMnp7eKFmsbw/Lt8ekh+0cqsstlZaNZ+ldkvnE]"
+# JSON Logger Configuration 
+json:
+  logger:
+    application:
+      name: "sap-hana-app"
+      version: "0.0.1"
+
+# JMS Active MQ Server Configuration
+activemq:
+  brokerurl: "tcp://localhost:61616"
+  username: "admin"
+  #password: "admin"
+  password: "![khodpPs44oeAnFLmi52epA==]"
+  customerQueue:  "customer-queue"
+  invoiceQueue:  "invoice-queue"

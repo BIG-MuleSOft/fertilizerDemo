@@ -1,0 +1,52 @@
+[
+  {
+    "CUSTID": 1,
+    "CUSTN": "IBM",
+    "CUSTL": "US",
+    "CUSTST": "Active",
+    "CUSTME": "Gold",
+    "CUSTPRT": "4",
+    "CUSTIND": "IT",
+    "CUSTSUBDATE": "2023-07-03T12:12:00"
+  },
+  {
+    "CUSTID": null,
+    "CUSTN": "ACC",
+    "CUSTL": "US",
+    "CUSTST": "Active",
+    "CUSTME": "Gold",
+    "CUSTPRT": "5",
+    "CUSTIND": "IT",
+    "CUSTSUBDATE": "2023-06-03T12:12:00"
+  },
+  {
+    "CUSTID": 3,
+    "CUSTN": "ADP",
+    "CUSTL": "US",
+    "CUSTST": "Active",
+    "CUSTME": "Gold",
+    "CUSTPRT": "5",
+    "CUSTIND": "IT",
+    "CUSTSUBDATE": "2023-06-13T12:12:00"
+  },
+  {
+    "CUSTID": 4,
+    "CUSTN": "BIG",
+    "CUSTL": "UK",
+    "CUSTST": "Active",
+    "CUSTME": "Platinum",
+    "CUSTPRT": "5",
+    "CUSTIND": "IT",
+    "CUSTSUBDATE": "2023-06-13T12:12:00"
+  },
+  {
+    "CUSTID": 5,
+    "CUSTN": "HCL",
+    "CUSTL": "UK",
+    "CUSTST": "Active",
+    "CUSTME": "Platinum",
+    "CUSTPRT": "3",
+    "CUSTIND": "IT",
+    "CUSTSUBDATE": "2023-06-13T12:15:00"
+  }
+]

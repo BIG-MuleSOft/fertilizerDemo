@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_45460a5c_9bb1_46cf_ae96_05af04e4fd44_Input_Payload = Array<{|  SIDN: Number,   MANDT: String,   MATNR: String,   VPSTA?: String,   MEINS?: String,   MATKL?: String,   MBRSH?: String,   ERSDA?: Date|}>
+

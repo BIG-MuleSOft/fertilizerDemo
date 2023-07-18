@@ -1,0 +1,9 @@
+%dw 2.0
+
+type auto_7b98d254_7190_4a46_bd94_9ea929ad250c_Output_Variables_reffcommontraceid = Array<{ _?: java_lang_Object }>
+type java_lang_Object = {|  |} {"typeAlias": "Object",
+"class": "java.lang.Object",
+"typeId": "java.lang.Object"}
+
+
+

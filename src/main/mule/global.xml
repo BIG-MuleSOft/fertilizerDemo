@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger"
+	xmlns:jms="http://www.mulesoft.org/schema/mule/jms" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="9e157967-8778-42df-86c4-b37c9946660c" >
+		<http:request-connection host="localhost" port="8082" >
+			<reconnection >
+				<reconnect frequency="3000" count="10" />
+			</reconnection>
+		</http:request-connection>
+		<expiration-policy maxIdleTime="30" timeUnit="SECONDS" />
+	</http:request-config>
+	<json-logger:config name="JSON_Logger_Config" doc:name="JSON Logger Config" doc:id="d7995214-9e85-4500-88c7-c26fce29c8a0" environment="${mule.env}" />
+	<db:config name="Database_Config_SAP" doc:name="Database Config" doc:id="dd0384ad-ff39-4036-8606-3b3bdfebfb92" >
+		<db:generic-connection url="${s4hana.url}" user="${s4hana.username}" password="${secure::s4hana.password}" driverClassName="com.sap.db.jdbc.Driver"/>
+	</db:config>
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="ecec5273-28e8-44d3-a0cb-7daec3cd3b3c" />
+	<db:config name="Database_postgresql" doc:name="Database Config" doc:id="4537a961-a9a8-4c4b-8f19-db8800f42d00" >
+		<db:generic-connection url="${Database_postgresql.url}" driverClassName="org.postgresql.Driver" user="${Database_postgresql.username}" password="${secure::Database_postgresql.password}" />
+	</db:config>
+	<global-property doc:name="Global Property" doc:id="2561e382-f879-492d-af53-1e276ffdc100" name="mule.env" value="dev" />
+	<configuration-properties doc:name="Configuration properties" doc:id="99bfc276-79ef-49c9-be51-efc7e5ee0555" file="sap-hana-sapi-${mule.env}.yaml" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="66fc20a4-a897-4a21-ab8a-5e8aa9d76476" file="sap-hana-sapi-${mule.env}.yaml" key="MuleSoft12345678"/>
+	<jms:config name="JMS_Config" doc:name="JMS Config" doc:id="2c522b9b-ea79-421f-a9a4-2d161828ae62" >
+		<jms:active-mq-connection username="${secure::activemq.username}" password="${secure::activemq.password}" >
+			<jms:factory-configuration brokerUrl="${activemq.brokerurl}" />
+		</jms:active-mq-connection>
+	</jms:config>
+</mule>

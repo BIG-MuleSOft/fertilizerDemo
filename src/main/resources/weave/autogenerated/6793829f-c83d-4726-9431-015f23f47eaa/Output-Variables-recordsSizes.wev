@@ -1,0 +1,10 @@
+%dw 2.0
+
+type auto_6793829f_c83d_4726_9431_015f23f47eaa_Output_Variables_recordsSizes = {|
+  totalSizePayload: Number, 
+  SuccessPayload: Number, 
+  totalFailedRecords: Number, 
+  failedWithNumber: Number, 
+  failedWithMF: Number
+|}
+

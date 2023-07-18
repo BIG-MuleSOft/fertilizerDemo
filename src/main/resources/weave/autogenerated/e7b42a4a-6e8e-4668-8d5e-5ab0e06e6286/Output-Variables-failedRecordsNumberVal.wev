@@ -1,0 +1,9 @@
+%dw 2.0
+
+type auto_e7b42a4a_6e8e_4668_8d5e_5ab0e06e6286_Output_Variables_failedRecordsNumberVal = Array<{ _?: java_lang_Object }>
+type java_lang_Object = {|  |} {"typeAlias": "Object",
+"class": "java.lang.Object",
+"typeId": "java.lang.Object"}
+
+
+

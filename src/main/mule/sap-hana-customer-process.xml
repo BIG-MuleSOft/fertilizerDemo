@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger" xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:s4hana="http://www.mulesoft.org/schema/mule/s4hana" xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/s4hana http://www.mulesoft.org/schema/mule/s4hana/current/mule-s4hana.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd">
+	<flow name="sap-hana-customer-SchedularFlow" doc:id="47c5b220-b4bf-4494-bc12-ae6d4a84445a" initialState="stopped">
+		<scheduler doc:name="Scheduler" doc:id="fdc60ff4-e86e-4628-9c33-adb87241b0d2" >
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+		</scheduler>
+		<json-logger:logger doc:name="process start" doc:id="3f7523c3-032d-47c5-879b-5174a06956f3" config-ref="JSON_Logger_Config" message="process start"/>
+		<os:retrieve doc:name="RetrievelastRecord" doc:id="9c081219-d8d5-49e9-b1b0-43dd986c1b15" objectStore="Object_store" key="lastRecordCust">
+			<os:default-value><![CDATA[#[120]]]></os:default-value>
+		</os:retrieve>
+		<flow-ref doc:name="Flow Reference-sap-customer-process" doc:id="f67da11d-69dd-4e44-8b09-ea9e5ffa3729" name="sap-customer-process"/>
+	</flow>
+	<flow name="sap-customer-process" doc:id="1726de2a-fe17-44dd-b716-7369a9c08ead" >
+		<db:select doc:name="querySAPWithLastRecordNumber" doc:id="8be74954-c555-4d6f-b2dc-b05ae73f6d8e" config-ref="Database_Config_SAP">
+			<db:sql><![CDATA[SELECT
+	"CUSTID",
+	"CUSTN",
+	"CUSTL",
+	"CUSTST",
+	"CUSTME",
+	"CUSTPRT",
+	"CUSTIND",
+	"CUSTSUBDATE"
+FROM "HOTEL"."Z0MM_DATA_CUSTOMER" WHERE CUSTID > :record]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"record" : payload}]]]></db:input-parameters>
+		</db:select>
+		<json-logger:logger doc:name="SAP_respoLogger" doc:id="6a06c64c-c2e3-4992-9ab7-626e2cbf8993" config-ref="JSON_Logger_Config" message="response from SAP" tracePoint="AFTER_REQUEST"/>
+		<ee:transform doc:name="mapCustomerData" doc:id="7f20d541-05af-498f-b807-778ddb704014">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ((item, index) -> {
+    "CUSTID" : item.CUSTID,
+    "CUSTN" : item.CUSTN,
+    "CUSTL" : item.CUSTL,
+    "CUSTST" : item.CUSTST,
+    "CUSTME" : item.CUSTME,
+    "CUSTPRT" : item.CUSTPRT,
+    "CUSTIND" : item.CUSTIND,
+    "CUSTSUBDATE" : item.CUSTSUBDATE
+})]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="sortPayload" doc:id="f11bd746-6edb-41d7-9fb9-8a0237ba1410">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload orderBy ((item, index) -> item.CUSTID)]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="lastRecordCust" ><![CDATA[max(payload.CUSTID)]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<os:retrieve doc:name="Retrieve-batchNoCust" doc:id="663ff07f-4d1b-4958-982e-338b4d97401f" key="batchNoCust" objectStore="Object_store" target="batchNo">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<ee:transform doc:name="SucceessAndFailRecords" doc:id="c33d4c4e-a854-4b86-bd33-b3e384809f71">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="successRecords"><![CDATA[%dw 2.0
+output application/json
+---
+payload filter ($.'CUSTID' != "" and $.'CUSTN' != "" and (typeOf($.'CUSTPRT') != "Number"))]]></ee:set-variable>
+				<ee:set-variable variableName="failedRecordsMF"><![CDATA[%dw 2.0
+output application/json
+---
+payload filter ($.'CUSTN' == "" ) default[]]]></ee:set-variable>
+				<ee:set-variable variableName="failedRecordsNumberVal"><![CDATA[%dw 2.0
+output application/json
+---
+payload filter (typeOf($.'CUSTPRT') == "Number")]]></ee:set-variable>
+				<ee:set-variable variableName="batchNo" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.batchNo + 1]]></ee:set-variable>
+				<ee:set-variable variableName="startTime" ><![CDATA[%dw 2.0
+output application/java
+---
+now()]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="sizesOfRecords" doc:id="628b39b6-2fd7-4a03-8e1e-55bcc5b8c212" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="recordsSizes" ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"totalSizePayload" : sizeOf(payload),
+	"SuccessPayload" :sizeOf(vars.successRecords),
+	"totalFailedRecords" : sizeOf(payload) - sizeOf(vars.successRecords),
+	"failedWithNumber": sizeOf(vars.failedRecordsNumberVal),
+	"failedWithMF" : sizeOf(vars.failedRecordsMF)
+}]]></ee:set-variable>
+				<ee:set-variable variableName="batchrun" ><![CDATA[%dw 2.0
+output application/json
+---
+now() as String {format: "yyyy-MM-dd HH:mm:ss"}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="ab6f84dc-be94-4dca-96df-34f109946e38">
+			<when expression="#[sizeOf(vars.successRecords) &gt; '0']">
+				<jms:publish doc:name="PublishCustomerData" doc:id="6a0e59c8-13cd-4c3a-8877-5a473f827287" destination="${activemq.customerQueue}" config-ref="JMS_Config">
+					<jms:message >
+						<jms:body ><![CDATA[#[vars.successRecords]]]></jms:body>
+						<jms:properties ><![CDATA[#[{
+"batchRuntime" : vars.batchrun,
+"batchNo": "CUST#" ++ vars.batchNo
+}
+}]]]></jms:properties>
+					</jms:message>
+				</jms:publish>
+			</when>
+			<otherwise>
+				<json-logger:logger doc:name="Logger" doc:id="c26df59b-6ba2-4812-8b72-5d5ffb32885d" config-ref="JSON_Logger_Config" message="no success records to process"/>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="inputTocommontrace Table" doc:id="73790e9b-fa2a-492c-9555-f6d71d31f8dc">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+import * from dw::util::Coercions
+output application/json
+var flowruntime=toNumber((now() - vars.startTime), "seconds")
+---
+{
+    "sourcedatatype" : 'Customer',
+    "batchrun" : vars.batchrun,
+    "totalrecord" : vars.recordsSizes.totalSizePayload as Number,
+    "totalsuccessrecord" : vars.recordsSizes.SuccessPayload as Number,
+    "totalfailedrrecord" : vars.recordsSizes.totalFailedRecords as Number,
+    "failedWithNumber" : vars.recordsSizes.failedWithNumber,
+    "failedWithMF" : vars.recordsSizes.failedWithMF,
+    "status" :  if (vars.recordsSizes.totalFailedRecords == 0 )"PASSED" else if(vars.recordsSizes.totalSizePayload == vars.recordsSizes.totalFailedRecords )"FAILED" else "Partial-Passed",
+    "phase" : "SAP",
+    "batchNo": "CUST#" ++ vars.batchNo,
+    "flowruntime": flowruntime
+    
+     }]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<flow-ref doc:name="process-error-records" doc:id="f7cb8628-9283-494d-b882-d64d385e9d72" name="process-error-records-cust"/>
+		<flow-ref doc:name="FlowReferenceToUpdateObjectStore" doc:id="0169c8d9-38a8-4104-9d09-fc6458e56784" name="ObjectStoreUpdate_Flow" />
+		<json-logger:logger doc:name="EndCustomerLogger" doc:id="18bae612-5fd9-4e71-986e-fa36bd882199" config-ref="JSON_Logger_Config" message="End Customer Logger"/>
+	</flow>
+	<sub-flow name="ObjectStoreUpdate_Flow" doc:id="45460a5c-9bb1-46cf-ae96-05af04e4fd44" >
+		<os:store doc:name="StoreCustomerLastRecordUpdate" doc:id="d362eaa7-27c4-476c-81a7-427347c961ce" objectStore="Object_store" key="lastRecordCust">
+			<os:value ><![CDATA[#[vars.lastRecordCust]]]></os:value>
+		</os:store>
+		<os:store doc:name="Store-batchNoCust" doc:id="6d1dc931-bbff-4864-ae0d-32c7c95cfa53" key="batchNoCust" objectStore="Object_store">
+			<os:value ><![CDATA[#[vars.batchNo]]]></os:value>
+		</os:store>
+	</sub-flow>
+</mule>

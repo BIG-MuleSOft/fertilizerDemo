@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<flow name="process-error-records-inv" doc:id="988ebb2d-2ce2-4a4a-b870-33bc4e87ea82" >
+		<choice doc:name="Choice" doc:id="da439eb7-04c8-4910-abcf-e99f16acb531" >
+			<when expression="#[payload.totalfailedrrecord == 0]" >
+				<db:insert doc:name="commontrace Table" doc:id="0ed6be25-a52e-467f-980c-b2aa02490762" config-ref="Database_postgresql" >
+					<db:sql ><![CDATA[INSERT INTO public.commontrace (sourcedatatype, batchrun, totalrecord, totalsuccessrecord, totalfailedrrecord, status, phase,batchkey,flowruntime)
+VALUES('Invoice',:batchrun,:totalrecord,:totalsuccessrecord,:totalfailedrrecord,'PASSED', 'SAP',:batchNo,:flowruntime)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+				</db:insert>
+			</when>
+			<when expression="#[payload.totalrecord == payload.totalfailedrrecord]" >
+				<db:insert doc:name="commontrace Table" doc:id="880c8072-79a1-412a-b6dd-65ea685d297f" config-ref="Database_postgresql" >
+					<db:sql ><![CDATA[INSERT INTO public.commontrace (sourcedatatype, batchrun, totalrecord, totalsuccessrecord, totalfailedrrecord, status, phase,batchkey,flowruntime)
+VALUES('Invoice',:batchrun,:totalrecord,:totalsuccessrecord,:totalfailedrrecord,'FAILED', 'SAP',:batchNo,:flowruntime)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+				</db:insert>
+			</when>
+			<otherwise >
+				<db:insert doc:name="commontrace Table" doc:id="10b68cf1-cea0-412b-b27d-124036594cc6" config-ref="Database_postgresql" >
+					<db:sql ><![CDATA[INSERT INTO public.commontrace (sourcedatatype, batchrun, totalrecord, totalsuccessrecord, totalfailedrrecord, status, phase,batchkey,flowruntime)
+VALUES('Invoice',:batchrun,:totalrecord,:totalsuccessrecord,:totalfailedrrecord,'Partial-Passed', 'SAP',:batchNo,:flowruntime)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+				</db:insert>
+			</otherwise>
+		</choice>
+		<db:select doc:name="getCommontraceid" doc:id="dd27c55a-f638-41b6-9076-ff37a64842cb" config-ref="Database_postgresql" target="reffcommontraceid" >
+			<db:sql ><![CDATA[SELECT MAX(commontraceid)  FROM "public"."commontrace" WHERE sourcedatatype= 'Invoice' AND  phase='SAP']]></db:sql>
+		</db:select>
+		<ee:transform doc:name="PayloadErrorinfo" doc:id="0e4e33f3-7a91-4bd7-aa92-4820faef9085" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	"reffcommontraceid" : vars.reffcommontraceid.max[0],
+"refferrormapid" : "101",
+"countoferrorrecord" : vars.recordsSizes.failedWithMF,
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<choice doc:name="Choice1" doc:id="2118dc03-daca-452c-92b8-39d580659aff" >
+			<when expression="#[payload.countoferrorrecord &gt;= '1']" >
+				<db:insert doc:name="InsErterrorinfo" doc:id="3d31c6f2-2d1f-42c7-8e17-9e945ae9efc6" config-ref="Database_postgresql" >
+					<db:sql ><![CDATA[INSERT INTO public.errorinfo (reffcommontraceid, refferrormapid, countoferrorrecord)
+VALUES(:reffcommontraceid, :refferrormapid, :countoferrorrecord)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+				</db:insert>
+			</when>
+			<otherwise >
+				<json-logger:logger doc:name="Logger" doc:id="f1c1f385-fc24-448a-b44c-464cd57cc0a9" config-ref="JSON_Logger_Config" message="no failed records " tracePoint="FLOW"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="process-error-records-cust" doc:id="7b98d254-7190-4a46-bd94-9ea929ad250c" >
+		<choice doc:name="Choice" doc:id="a5025596-bc24-4926-9cb3-030bba7ed6ec" >
+			<when expression="#[payload.totalfailedrrecord == 0]" >
+				<db:insert doc:name="commontrace Table" doc:id="67086abe-f924-4e25-a45f-8a12dd352d22" config-ref="Database_postgresql" >
+					<db:sql ><![CDATA[INSERT INTO public.commontrace (sourcedatatype, batchrun, totalrecord, totalsuccessrecord, totalfailedrrecord, status, phase,batchkey,flowruntime)
+VALUES('Customer',:batchrun,:totalrecord,:totalsuccessrecord,:totalfailedrrecord,'PASSED', 'SAP',:batchNo,:flowruntime)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+				</db:insert>
+			</when>
+			<when expression="#[payload.totalrecord == payload.totalfailedrrecord]" >
+				<db:insert doc:name="commontrace Table" doc:id="2e0b71bc-6c57-4bb2-ba78-680c90871737" config-ref="Database_postgresql" >
+					<db:sql ><![CDATA[INSERT INTO public.commontrace (sourcedatatype, batchrun, totalrecord, totalsuccessrecord, totalfailedrrecord, status, phase,batchkey,flowruntime)
+VALUES('Customer',:batchrun,:totalrecord,:totalsuccessrecord,:totalfailedrrecord,'FAILED', 'SAP',:batchNo,:flowruntime)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+				</db:insert>
+			</when>
+			<otherwise >
+				<db:insert doc:name="commontrace Table" doc:id="669bf3d5-4010-410c-8a00-9d19f174bc73" config-ref="Database_postgresql" >
+					<db:sql ><![CDATA[INSERT INTO public.commontrace (sourcedatatype, batchrun, totalrecord, totalsuccessrecord, totalfailedrrecord, status, phase,batchkey,flowruntime)
+VALUES('Customer',:batchrun,:totalrecord,:totalsuccessrecord,:totalfailedrrecord,'Partial-Passed', 'SAP',:batchNo,:flowruntime)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[payload]]]></db:input-parameters>
+				</db:insert>
+			</otherwise>
+		</choice>
+		<db:select doc:name="getCommontraceid" doc:id="07a4c36e-f89d-4f8f-8ae8-cd396a9b142c" config-ref="Database_postgresql" target="reffcommontraceid">
+			<db:sql ><![CDATA[SELECT MAX(commontraceid)  FROM "public"."commontrace" WHERE sourcedatatype= 'Customer' AND  phase='SAP']]></db:sql>
+		</db:select>
+		<ee:transform doc:name="PayloadErrorinfo" doc:id="8fcfbd68-300c-4b69-8a6b-98e4a6fd7729">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	"reffcommontraceid" : vars.reffcommontraceid.max[0],
+"refferrormapid" : "101",
+"countoferrorrecord" : vars.recordsSizes.failedWithMF,
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="c90caaa3-8974-4c41-93ed-49dbc49db4f2">
+						<when expression="#[payload.countoferrorrecord &gt;= '1']">
+					<db:insert doc:name="InsErterrorinfo" doc:id="4e69363f-17fa-4293-a01d-14d736bb8490" config-ref="Database_postgresql">
+			<db:sql><![CDATA[INSERT INTO public.errorinfo (reffcommontraceid, refferrormapid, countoferrorrecord)
+VALUES(:reffcommontraceid, :refferrormapid, :countoferrorrecord)]]></db:sql>
+				<db:input-parameters><![CDATA[#[payload]]]></db:input-parameters>
+		</db:insert>
+				</when>
+			<otherwise >
+				<json-logger:logger doc:name="Logger" doc:id="ba837d65-3011-436e-8b02-ed6368162a0e" config-ref="JSON_Logger_Config" message="no failed records " tracePoint="FLOW" />
+			</otherwise>
+					</choice>
+	</flow>
+</mule>

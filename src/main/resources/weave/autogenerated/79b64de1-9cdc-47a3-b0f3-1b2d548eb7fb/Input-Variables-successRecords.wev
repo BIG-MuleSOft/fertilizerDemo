@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_79b64de1_9cdc_47a3_b0f3_1b2d548eb7fb_Input_Variables_successRecords = Array<{|  CUSTN: String,   CUSTST: String,   CUSTL: String,   CUSTSUBDATE: String,   CUSTPRT: String,   CUSTIND: String,   CUSTID: Number,   CUSTME: String|}>
+
